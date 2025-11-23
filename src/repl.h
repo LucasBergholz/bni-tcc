@@ -18,5 +18,7 @@ void free_names(void);
 int ask_yes_no(const char *question);
 void to_uppercase(char *str);
 void printheader();
+void printmenu();
+void replmenu();
 
 #endif /* REPL_H */

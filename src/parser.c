@@ -617,6 +617,12 @@ void effect(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 }
 
 void init(FILE *problem_file, FILE *domainc, FILE *domainh, Stack *parenthesis_stack, char tokenp) {
+	fprintf(domainc, "void init_elf(void) {\n\tp_iself = true;\n}\n\n"); //MOD
+	fprintf(domainc, "void init_human(void) {\n\tp_ishuman = true;\n}\n\n");
+	fprintf(domainc, "void init_goblin(void) {\n\tp_isgoblin = true;\n}\n\n");
+	fprintf(domainh, "void init_elf(void);\n");
+	fprintf(domainh, "void init_human(void);\n");
+	fprintf(domainh, "void init_goblin(void);\n");
 	push(parenthesis_stack, '(');
 	fprintf(domainc, "void initialize(void) {\n");
 	fprintf(domainh, "void initialize(void);\n");
@@ -633,11 +639,9 @@ void init(FILE *problem_file, FILE *domainc, FILE *domainh, Stack *parenthesis_s
 			//MOD
 			push(parenthesis_stack, tokenp);
 			fscanf(problem_file, "%[^)|^ ]s", str);
-			printf("%s\n", str);
 			if(str[0] == '='){
 				isfunc = 1;
 	            fscanf(problem_file, "%[^)|^]s", str);
-				printf("%s\n", str);
 				char newstr[100];
 				size_t len = strlen(str);
 				strncpy(newstr, str + 2, len - 2);
