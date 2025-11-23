@@ -15,6 +15,7 @@ extern char obj_sentinel;
 char *preprocess_file(const char *f);
 void constants_n_objects(FILE *file, SymbolTable *st, Stack *stack, LinkedList *hl, char token);
 void predicates(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st, Stack *parenthesis_stack, char tokend);
+void functions(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st, Stack *parenthesis_stack, char tokend);
 void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE *tmpapply, Stack *domain, Stack *parenthesis_stack, char tokend, int act_count);
 void parameters(FILE *domain_file, FILE *domainh, FILE *tmpapply, FILE *tmpfile_check_show, Stack *domain, char *act_name);
 void precondition(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_stack, char *act_name);

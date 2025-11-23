@@ -1,6 +1,6 @@
 #include "parser.h"
 
-const char *OPERATORS[] = {"and", "or", "not", "forall", "when"};
+const char *OPERATORS[] = {"and", "or", "not", "forall", "when", ">", "<", "="}; //MOD
 char obj_sentinel = 0; // Sentinela para objetos que nao tem tipo.
 
 int main(int argc, char *argv[]) {
@@ -76,6 +76,8 @@ int main(int argc, char *argv[]) {
 				constants_n_objects(domain_file, st, domain, hl, tokend);
 			else if (strcmp_list(hd, ":predicates") == 0)
 				predicates(domain_file, domainc, domainh, st, parenthesis_stack, tokend);
+            else if (strcmp_list(hd, ":functions") == 0) //MOD
+                functions(domain_file, domainc, domainh, st, parenthesis_stack, tokend); //MOD
 			else if (strcmp_list(hd, ":action") == 0)
 				action(domain_file, domainc, domainh, tmpshow, tmpapply, domain, parenthesis_stack, tokend, act_count++);
 			free_list(hd);
@@ -264,6 +266,73 @@ void predicates(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st
 	return;
 }
 
+//MOD
+void functions(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st, Stack *parenthesis_stack, char tokend) {
+    char stmpfilec[] = "/tmp/tmpfilec.XXXXXX";
+    char stmpfileh[] = "/tmp/tmpfileh.XXXXXX";
+
+    int itmpfilec = mkstemp(stmpfilec);
+    int itmpfileh = mkstemp(stmpfileh);
+
+    FILE *tmpfilec = fdopen(itmpfilec, "a"), *tmpfileh = fdopen(itmpfileh, "a");
+    create_enums(domainc, domainh, st);
+    push(parenthesis_stack, '(');
+    // count = quantos '?' em uma linha.
+    unsigned short count = 0, count_p = 0;
+    char str[100], tmpstr[30][100];
+    while (fscanf(domain_file, "%c", &tokend) && !is_empty_stack(parenthesis_stack)) {
+        // str = nome do predicado.
+        /* caso:
+           tokend = '?' -> soma count.
+           tokend = '-' -> printa [] com a qtd de objetos.
+           tokend = '(' -> add na pilha de parenteses, printando bool com o nome da variavel.
+           tokend = ')' -> desempilha, caso esteja vazia encerra o tratamento do bloco :predicates. 
+           Caso o obj_sentinel = 0, printa [] com a qtd de objetos pradrao. Printa ';'.
+         */
+        if (tokend == '?') {
+            fscanf(domain_file, " %[^)|^ ]s", tmpstr[count_p]);
+            if (count_p > 0) fprintf(tmpfilec, ", int %s", tmpstr[count_p]), fprintf(tmpfileh, ", int %s", tmpstr[count_p]);
+            else fprintf(tmpfilec, "int %s", tmpstr[count_p]), fprintf(tmpfileh, "int %s", tmpstr[count_p]);
+            count++, count_p++;
+        }
+        else if (tokend == '_') {
+            char typename[100];
+            obj_sentinel = 1;
+            fscanf(domain_file, " %[^)|^ ]s", typename);
+            for (int i = 0; i < count; i++)
+                fprintf(domainc, "[%ld]", get_qtd(st, typename));
+            count = 0;
+        }
+        else if (tokend == '(') {
+            push(parenthesis_stack, tokend), fscanf(domain_file, "%[^)|^ ]s", str);
+            fprintf(domainc, "int f_%s", str);
+            fprintf(tmpfileh, "int checktrue_%s(", str);
+            fprintf(tmpfilec, "int checktrue_%s(", str);
+        }
+        else if (tokend == ')') {
+            pop(parenthesis_stack);
+            if (is_empty_stack(parenthesis_stack)) break;
+            if (!obj_sentinel) {
+                for (int i = 0; i < count; i++)
+                    fprintf(domainc, "[%ld]", get_qtd(st, "obj"));
+                count = 0;
+            }
+            fprintf(tmpfilec, ") {\n\treturn f_%s", str);
+            fprintf(tmpfileh, ");\n");
+            for (int i = 0; i < count_p; i++)
+                fprintf(tmpfilec, "[%s]", tmpstr[i]);
+            count_p = 0, obj_sentinel = 0;
+            fprintf(domainc, ";\n");
+            fprintf(tmpfilec, ";\n}\n");
+        }
+    }
+    fclose(tmpfilec), fclose(tmpfileh);
+    cat(stmpfilec, domainc), cat(stmpfileh, domainh);
+    remove(stmpfilec), remove(stmpfileh);
+    return;
+}
+
+
 void action(FILE *domain_file, FILE *domainc, FILE *domainh, FILE *tmpshow, FILE *tmpapply, Stack *domain, Stack *parenthesis_stack, char tokend, int act_count) {
 	LinkedList *ha = create_list();
 	char stmpfile_check_show[] = "/tmp/tmpfile_check_show.XXXXXX";
@@ -418,7 +487,8 @@ void precondition(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parent
 						flags[0] = 0, flags[3] = 1;
 					} else if (operator == -1 && !flags[1]) {
 						char *preid = list_to_str(precondition);
-						if (flags[0]) fprintf(toreturn, " %s checktrue_%s(", OPERATORS[top(operators)[0]], preid);
+						if (strlen(preid) == 1 && isdigit(preid[0])) fprintf(toreturn, " %s %s",OPERATORS[top(operators)[0]], preid), pop(operators); //MOD
+						else if (flags[0]) fprintf(toreturn, " %s checktrue_%s(", OPERATORS[top(operators)[0]], preid); //MOD
 						else fprintf(toreturn, "checktrue_%s(", preid);
 						free(preid), flags[0] = 0, flags[1] = 1, flags[4] = 1;
 					} else if (operator == -1 && flags[1]) {
@@ -460,7 +530,7 @@ void precondition(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parent
 
 void effect(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_stack, char *act_name) {
 	LinkedList *effect = create_list();
-	char token, isnot = 1, flag = 0;
+	char token, isnot = 1, flag = 0, incdec = 0; //MOD
 	while (fscanf(domain_file, "%c", &token)) {
 		if (token == ' ' || token == '(' || token == ')') {
 			stack_to_list(domain, effect);
@@ -475,10 +545,56 @@ void effect(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 						create_forall_effect(domain_file, domainc, types_list, 0);
 						flag = 1, free_list(effect), free_list(types_list), free(types_list); 
 						continue;
-					} else if (strcmp_list(effect, "and") == 0) {free_list(effect); continue;}
+					} else if (strcmp_list(effect, "and") == 0) {free_list(effect); continue;
+					} else if (strcmp_list(effect, "increase") == 0) { //MOD
+						incdec = 1;
+						LinkedList *function = create_list(), *amount = create_list();
+						while(fscanf(domain_file, "%c", &token)) {
+							if (token == ')') break;
+							if (token != '(' && token != ' ') push(domain, token);
+						}
+
+						stack_to_list(domain, function);
+						fprintf(domainc, "\tf_%s += ", list_to_str(function));
+						fscanf(domain_file, "%c", &token);
+                        while(fscanf(domain_file, "%c", &token)) {
+                            if (token == ')') break;
+                            if (token != '(' && token != ' ') push(domain, token);
+                        }
+
+						stack_to_list(domain, amount);
+                        fprintf(domainc, "%s;\n", list_to_str(amount));
+
+
+						free_list(function);
+						free_list(amount);
+					} else if (strcmp_list(effect, "decrease") == 0) {
+						incdec = 1;
+                        LinkedList *function = create_list(), *amount = create_list();
+                        while(fscanf(domain_file, "%c", &token)) {
+                            if (token == ')') break;
+                            if (token != '(' && token != ' ') push(domain, token);
+                        }
+
+                        stack_to_list(domain, function);
+                        fprintf(domainc, "\tf_%s -= ", list_to_str(function));
+                        fscanf(domain_file, "%c", &token);
+                        while(fscanf(domain_file, "%c", &token)) {
+                            if (token == ')') break;
+                            if (token != '(' && token != ' ') push(domain, token);
+                        }
+
+                        stack_to_list(domain, amount);
+                        fprintf(domainc, "%s;\n", list_to_str(amount));
+
+
+                        free_list(function);
+                        free_list(amount);
+                    }
+					if(incdec==0) { //MOD
 					char *predicate = list_to_str(effect);
 					fprintf(domainc, "\tp_%s", predicate);
-					free(predicate);
+					free(predicate);}
 				} else {
 					//add args dos predicados ?<...>
 					char *arg = list_to_str(effect);
@@ -491,7 +607,7 @@ void effect(FILE *domain_file, FILE *domainc, Stack *domain, Stack *parenthesis_
 		else if (token == ')') {
 			pop(parenthesis_stack);
 			if (amount(parenthesis_stack) == 1) break;
-			if (flag == 0) fprintf(domainc, " = %d;\n", isnot), isnot = 1;
+			if (flag == 0 && incdec == 0) fprintf(domainc, " = %d;\n", isnot), isnot = 1; //MOD
 			flag = 1;
 		} else if (token != ' ') push(domain, token);
 		free_list(effect);
@@ -504,21 +620,41 @@ void init(FILE *problem_file, FILE *domainc, FILE *domainh, Stack *parenthesis_s
 	push(parenthesis_stack, '(');
 	fprintf(domainc, "void initialize(void) {\n");
 	fprintf(domainh, "void initialize(void);\n");
+	int isfunc = 0, isnumb = 0;
 	while (fscanf(problem_file, "%c", &tokenp) && !is_empty_stack(parenthesis_stack)) {
 		// str = nome do predicado.
 		char str[100];
 		if (tokenp == ' ' && amount(parenthesis_stack) == 2) {
 			fscanf(problem_file, "%[^)|^ ]s", str);
-			fprintf(domainc, "[%s]", str);
+			if(!isdigit((unsigned char)str[0])) fprintf(domainc, "[%s]", str); //MOD
+			else isfunc = 1, isnumb = 1; //MOD
 		}
 		else if (tokenp == '(') {
-			push(parenthesis_stack, tokenp), fscanf(problem_file, "%[^)|^ ]s", str);
-			fprintf(domainc, "\tp_%s", str);
+			//MOD
+			push(parenthesis_stack, tokenp);
+			fscanf(problem_file, "%[^)|^ ]s", str);
+			printf("%s\n", str);
+			if(str[0] == '='){
+				isfunc = 1;
+	            fscanf(problem_file, "%[^)|^]s", str);
+				printf("%s\n", str);
+				char newstr[100];
+				size_t len = strlen(str);
+				strncpy(newstr, str + 2, len - 2);
+				newstr[len - 2] = '\0';
+				fprintf(domainc, "\tf_%s", newstr);
+				push(parenthesis_stack, '(');
+			} else {
+				fprintf(domainc, "\tp_%s", str);
+			}
 		}
 		else if (tokenp == ')') {
 			pop(parenthesis_stack);
 			if (is_empty_stack(parenthesis_stack)) break;
-			fprintf(domainc, " = true;\n");
+			//MOD
+			if (!isfunc) fprintf(domainc, " = true;\n");
+			else if (!isnumb) fprintf(domainc, " = 0;\n");
+			isfunc = 0, isnumb = 0;
 		}
 	}
 	fprintf(domainc, "\treturn;\n}\n");
