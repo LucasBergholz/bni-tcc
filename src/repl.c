@@ -25,7 +25,13 @@ int main(void) {
 		input = readline(">> ");
 		if (!input || strcmp(input, "quit") == 0 || strcmp(input, "exit") == 0) break;
 		if (*input) add_history(input);
-		char ar = apply_actions(input);
+		char ar;
+		if (isdigit(input[0]) && input[1] == '\0') {
+			int index = input[0] - '0';
+			printf("\n\nAction: %s\n\n", action_names[index]);
+			ar = apply_actions(action_names[index]);
+		}
+		else ar = apply_actions(input);
 		if (ar == 2) printf("\033[31;1mATTENTION: \033[90mUnrecognised command. Check spelling and try again.\033[0m\n");
 		else if (ar == 1) printf("\033[31;1mATTENTION: \033[90mAction with invalid parameters.\033[0m\n");
 		free_names(), free(input);
@@ -66,7 +72,7 @@ void show_actions(const char *filename) {
 			action_names = realloc(action_names, SIZENAMES * sizeof(char*)); 
 			if (action_names == NULL) perror("Error reallocating memory for action_names"), exit(1);
 		}
-		printf("  - %s\n", str);
+		printf("\t%d  - %s\n", i, str);
 		action_names[i] = malloc(strlen(str) + 1);
 		if (action_names[i] == NULL) perror("Error allocating memory for action names"), exit(1);
 		strcpy(action_names[i++], str);
