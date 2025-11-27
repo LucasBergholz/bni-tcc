@@ -273,3 +273,28 @@ stdout);
 
 }
 
+static action_text dictionary[] = {
+    {"(move_from_city_hall",
+     "You swing your sword at the goblin!\n"
+     "The creature screeches in pain and stumbles back.\n"
+     "Blood drips from your blade...\n"},
+
+    {"inspect",
+     "You carefully observe your surroundings.\n"
+     "Something glimmers faintly under the dirt.\n"},
+
+    {"default",
+     "You hesitate, unsure of what to do next.\n"},
+
+    {NULL, NULL} // Marca o fim do array
+};
+
+void print_action_text(const char *action) {
+    for (int i = 0; dictionary[i].action != NULL; i++) {
+        if (strcmp(dictionary[i].action, action) == 0) {
+            printf("%s", dictionary[i].text);
+            return;
+		}
+	}
+}
+

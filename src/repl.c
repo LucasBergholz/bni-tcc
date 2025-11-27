@@ -32,11 +32,16 @@ int main(void) {
 			if (index < num_actions) {
 				printf("\n\nAction: %s\n\n", action_names[index]);
 				ar = apply_actions(action_names[index]);
+				print_action_text(action_names[index]);
 			} else {
 				ar = 2;
 			}
 		}
-		else ar = apply_actions(input);
+		else {
+			ar = apply_actions(input);
+			print_action_text(input);
+		}
+
 		if (ar == 2) printf("\033[31;1mATTENTION: \033[90mUnrecognised command. Check spelling and try again.\033[0m\n");
 		else if (ar == 1) printf("\033[31;1mATTENTION: \033[90mAction with invalid parameters.\033[0m\n");
 		free_names(), free(input);
