@@ -1,4 +1,5 @@
 #include "repl.h"
+#include "gamelibrary.h"
 
 int SIZENAMES = 30;
 char **action_names = NULL;
@@ -12,7 +13,7 @@ int main(void) {
 	action_names = malloc(SIZENAMES * sizeof(char*));
 	if (action_names == NULL) perror("Error allocating initial memory for action_names"), exit(1);
 	char *input, sactions[] = "/tmp/actions.XXXXXX";
-	int iactions = mkstemp(sactions);
+	int iactions = mkstemp(sactions), num_actions = 0;
 	if (race == 1) init_human();
 	else if (race == 2) init_elf();
 	else if (race == 3) init_goblin();
@@ -21,15 +22,19 @@ int main(void) {
 			if(!ask_yes_no("Goal has been hit! Do u want to continue? (y/N)\n")) break;
 		printf("\nPlease enter one of the currently available actions:\n");
 		check_show_actions(sactions);
-		show_actions(sactions);
+		show_actions(sactions, &num_actions);
 		input = readline(">> ");
 		if (!input || strcmp(input, "quit") == 0 || strcmp(input, "exit") == 0) break;
 		if (*input) add_history(input);
 		char ar;
 		if (isdigit(input[0]) && input[1] == '\0') {
 			int index = input[0] - '0';
-			printf("\n\nAction: %s\n\n", action_names[index]);
-			ar = apply_actions(action_names[index]);
+			if (index < num_actions) {
+				printf("\n\nAction: %s\n\n", action_names[index]);
+				ar = apply_actions(action_names[index]);
+			} else {
+				ar = 2;
+			}
 		}
 		else ar = apply_actions(input);
 		if (ar == 2) printf("\033[31;1mATTENTION: \033[90mUnrecognised command. Check spelling and try again.\033[0m\n");
@@ -60,7 +65,7 @@ char* action_name_generator(const char *text, int state) {
 	return NULL;
 }
 
-void show_actions(const char *filename) {
+void show_actions(const char *filename, int *num_actions) {
 	FILE *f = fopen(filename, "r");
 	if (f == NULL) perror("Error opening file for action_names"), exit(1);
 	int i = 0;
@@ -79,6 +84,7 @@ void show_actions(const char *filename) {
 	}
 	action_names[i] = NULL;
 	fclose(f);
+	*num_actions = i;
 }
 
 void free_names(void) {
@@ -127,138 +133,4 @@ void printheader(void) {
 		"\033[0m";
 	printf("\e[1;1H\e[2J");
 	printf("%s\n", header);
-}
-
-void printmenu(void) {
-	printf("\e[1;1H\e[2J");
-	    // Códigos ANSI para cores
-    const char *RESET = "\033[0m";
-    const char *YELLOW = "\033[1;33m";
-    const char *GREEN = "\033[1;32m";
-    const char *CYAN = "\033[1;36m";
-    const char *MAGENTA = "\033[1;35m";
-
-    printf(
-"%s  ====================================================\n"
-"  ||                                               ||\n"
-"  ||          ***  GOBBI'S GOBLINS  ***            ||\n"
-"  ||               A Medieval RPG                  ||\n"
-"  ||                                               ||\n"
-"  ====================================================\n"
-"                 \\      ^__^\n"
-"                  \\     (oo)\\_______\n"
-"                        (__)\\       )\\/\\\n"
-"                            ||----- |\n"
-"                            ||     ||\n\n"
-"%s                  =========================\n"
-"                  ||  [1] Start Game     ||\n"
-"                  ||  [2] Instructions   ||\n"
-"                  ||  [3] About the Game ||\n"
-"                  ||  [4] Exit Game      ||\n"
-"                  =========================\n\n"
-"  ----------------------------------------------------\n"
-"   \"In the land of Ogama, goblins roam and chaos reigns.\n"
-"    Dare you challenge the cunning Gobbi and his horde?\"\n"
-"  ----------------------------------------------------%s\n"
-"\n"
-"                 \033[90mdeveloped by\033[0m \033[1;35mLucas Bergholz\033[0m \n",
-        YELLOW,     // start title color
-        CYAN, RESET   // Footer
-    );
-}
-
-void replmenu(void) {
-    int choice = 0;
-    while (1) {
-        system("clear");
-        printmenu();
-        printf("\nSelect an option: ");
-        if (scanf("%d", &choice) != 1) {
-            while (getchar() != '\n');
-            continue;
-        }
-
-        if (choice == 1) {
-            printf("\nStarting the game...\n");
-            break;
-        } else if (choice == 2) {
-            printf("\n--- Instructions ---\n");
-            printf("This game was developed by Lucas Bergholz for his undergraduate thesis.\n\n");
-			printf("Gobbi’s Goblins is entirely played through the terminal. Every turn, the system\n");
-			printf("presents a set of available actions derived from the current game state.\n\n");
-
-			printf("To interact, simply type the number corresponding to the action you wish to take.\n");
-			printf("Actions may include talking to characters, exploring regions, or engaging in\n");
-			printf("confrontations. Each choice dynamically changes the world state and influences\n");
-			printf("the possible endings of the game.\n\n");
-
-			printf("The quest system is central to progression. At any given time, only one quest\n");
-			printf("can be active. You are free to attempt any number of quests throughout the\n");
-			printf("gameplay. These quests enrich the narrative and reshape the conditions of the world\n");
-			printf("corresponding to the actions you take. They are NOT mandatory to finish the game.\n\n");
-
-			printf("Only two quests are truly essential: the confrontation with Gobbi, as this is the\n");
-			printf("central point of the  narrative, and the final quest that determines the ending of\n");
-			printf("the simulation. Every decision you make influences how these final states are\n");
-			printf("reached, and which version of Ogama’s fate is going to happen.\n\n");
-
-            printf("Type 'quit' or 'exit' to leave the game.\n");
-            printf("Press ENTER to return to the menu.\n");
-            getchar(); getchar();
-        } else if (choice == 3) {
-            printf("\n--- About the Game ---\n\n\n");
-		    printf("Ogama, once a thriving kingdom, now suffers under the rule of King Jekyll Hyde.\n");
-			printf("The city’s walls strain under overpopulation, food shortages, and rampant crime.\n");
-		    printf("In the shadows of Goblin’s Den, a charismatic rebel named Gobbi rises, a cunning\n");
-	        printf("leader who gathers the oppressed and builds a mafia that challenges the crown.\n\n");
-
-			printf("Hyde, desperate to maintain order, secretly enlists the player: a neutral agent\n");
-	        printf("tasked with dismantling Gobbi’s network. But as your mission unfolds, the moral\n");
-		    printf("divides blur, Gobbi’s rebellion may not be pure chaos, and Hyde’s justice may\n");
-			printf("hide something darker.\n\n");
-
-			printf("In a story filled with nuances and different sides of the same coin, who will YOU\n");
-			printf("choose to rule the chaotic kingdom of Ogama?");
-			printf("Press ENTER to return to the main menu.\n");
-			getchar(); getchar();
-        } else if (choice == 4) {
-            printf("\nGoodbye, adventurer!\n");
-            exit(0);
-        } else {
-            printf("Invalid option. Try again.\n");
-        }
-    }
-
-    printf("\n\nSelect a name for your character:\n");
-	scanf("%20s", &player_name);
-	choice = 0;
-    while (1) {
-        system("clear");
-        printf("\n\nSelect a race for %s:\n", player_name);
-		printf(
-"                  =========================\n"
-"                  ||  [1] Human          ||\n"
-"                  ||  [2] Elf            ||\n"
-"                  ||  [3] Goblin         ||\n"
-"                  =========================\n\n");
-
-        if (scanf("%d", &choice) != 1) {
-            while (getchar() != '\n');
-            continue;
-        }
-
-        if (choice == 1) {
-			race = 1;
-			break;
-        } else if (choice == 2) {
-			race = 2;
-			break;
-        } else if (choice == 3) {
-			race = 3;
-			break;
-		} else {
-            printf("Invalid option. Try again.\n");
-        }
-    }
-
 }

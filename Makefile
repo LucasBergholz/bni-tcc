@@ -12,7 +12,7 @@ SRC_DIR := src
 REPL_DIR := src
 VAL_DIR := src
 SRC := $(SRC_DIR)/parser.c $(SRC_DIR)/linked_list.c $(SRC_DIR)/stack.c $(SRC_DIR)/symbol_table.c
-REPL_SRC := $(REPL_DIR)/repl.c
+REPL_SRC := $(REPL_DIR)/repl.c $(REPL_DIR)/gamelibrary.c
 VAL_SRC := $(VAL_DIR)/val.c
 OBJ = $(SRC:.c=.o)
 TARGET = parser
