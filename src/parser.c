@@ -214,6 +214,19 @@ void predicates(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st
 	// count = quantos '?' em uma linha.
 	unsigned short count = 0, count_p = 0;
 	char str[100], tmpstr[30][100];
+
+	char stmpfile_check_show_pred_c[] = "/tmp/tmpfile_check_show_pred_c.XXXXXX";
+	char stmpfile_check_show_pred_h[] = "/tmp/tmpfile_check_show_pred_h.XXXXXX";
+
+	int itmp_pred_c = mkstemp(stmpfile_check_show_pred_c);
+	int itmp_pred_h = mkstemp(stmpfile_check_show_pred_h);
+
+	FILE *tmp_pred_c = fdopen(itmp_pred_c, "w");
+	FILE *tmp_pred_h = fdopen(itmp_pred_h, "w");
+
+	char pred_names[100][100];
+	int pred_count = 0;
+
 	while (fscanf(domain_file, "%c", &tokend) && !is_empty_stack(parenthesis_stack)) {
 		// str = nome do predicado.
 		/* caso:
@@ -242,6 +255,19 @@ void predicates(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st
 			fprintf(domainc, "bool p_%s", str);
 			fprintf(tmpfileh, "bool checktrue_%s(", str);
 			fprintf(tmpfilec, "bool checktrue_%s(", str);
+			// Salva nome na lista
+			strcpy(pred_names[pred_count++], str);
+
+			// Declara protótipo no .h temporário
+			fprintf(tmp_pred_h, "void check_show_%s(char vetorStrings[][100], int *index);\n", str);
+
+			// Implementa função check_show_X no .c temporário
+			fprintf(tmp_pred_c,
+	        "void check_show_%s(char vetorStrings[][100], int *index) {\n"
+		    "\tif (checktrue_%s() == true) {\n"
+			"\t\tstrcpy(vetorStrings[(*index)++], \"(%s)\\n\");\n"
+	        "\t}\n"
+		    "}\n\n", str, str, str);
 		}
 		else if (tokend == ')') {
 			pop(parenthesis_stack);
@@ -260,6 +286,36 @@ void predicates(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st
 			fprintf(tmpfilec, ";\n}\n");
 		}
 	}
+
+	// Logica do check_shows geral
+	fprintf(tmp_pred_h, "void check_shows(int action);\n");
+	fprintf(tmp_pred_c,
+        "void check_shows(int action) {\n"
+		"\tchar vetorStrings[100][100];\n"
+        "\tint index = 0;\n");
+
+	for (int i = 0; i < pred_count; i++) {
+	    fprintf(tmp_pred_c, "\tcheck_show_%s(vetorStrings, &index);\n", pred_names[i]);
+	}
+
+	fprintf(tmp_pred_c,
+	    "\tif (action == 0) {"
+        "\t\tfor (int i = 0; i < index; i++) {\n"
+        "\t\t\tprintf(\"%%s\\n\", vetorStrings[i]);\n"
+        "\t\t}\n"
+		"\t}\n");
+
+	fprintf(tmp_pred_c, "}\n");
+
+	fclose(tmp_pred_c);
+	fclose(tmp_pred_h);
+
+	cat(stmpfile_check_show_pred_c, domainc);
+	cat(stmpfile_check_show_pred_h, domainh);
+
+	remove(stmpfile_check_show_pred_c);
+	remove(stmpfile_check_show_pred_h);
+
 	fclose(tmpfilec), fclose(tmpfileh);
 	cat(stmpfilec, domainc), cat(stmpfileh, domainh);
 	remove(stmpfilec), remove(stmpfileh);
@@ -280,6 +336,19 @@ void functions(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st,
     // count = quantos '?' em uma linha.
     unsigned short count = 0, count_p = 0;
     char str[100], tmpstr[30][100];
+
+	char stmpfile_checker_func_c[] = "/tmp/tmpfile_checker_func_c.XXXXXX";
+	char stmpfile_checker_func_h[] = "/tmp/tmpfile_checker_func_h.XXXXXX";
+
+	int itmp_func_c = mkstemp(stmpfile_checker_func_c);
+	int itmp_func_h = mkstemp(stmpfile_checker_func_h);
+
+	FILE *tmp_func_c = fdopen(itmp_func_c, "w");
+	FILE *tmp_func_h = fdopen(itmp_func_h, "w");
+
+	char func_names[100][100];
+	int func_count = 0;
+
     while (fscanf(domain_file, "%c", &tokend) && !is_empty_stack(parenthesis_stack)) {
         // str = nome do predicado.
         /* caso:
@@ -308,6 +377,17 @@ void functions(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st,
             fprintf(domainc, "int f_%s", str);
             fprintf(tmpfileh, "int checktrue_%s(", str);
             fprintf(tmpfilec, "int checktrue_%s(", str);
+			// salva o nome da função
+			strcpy(func_names[func_count++], str);
+
+			// prototipo no .h
+			fprintf(tmp_func_h, "void check_show_%s(char vetorStrings[][100], int *index);\n", str);
+
+			// implementação no .c
+			fprintf(tmp_func_c,
+			"void check_show_%s(char vetorStrings[][100], int *index) {\n"
+			"\tsprintf(vetorStrings[(*index)++], \"(= %%d %s)\\n\", checktrue_%s());\n"
+			"}\n\n", str, str, str);
         }
         else if (tokend == ')') {
             pop(parenthesis_stack);
@@ -326,6 +406,32 @@ void functions(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st,
             fprintf(tmpfilec, ";\n}\n");
         }
     }
+
+	fprintf(tmp_func_h, "void check_show_functions(int action);\n");
+	fprintf(tmp_func_c,
+    "void check_show_functions(int action) {\n"
+    "\tchar vetorStrings[100][100];\n"
+    "\tint index = 0;\n");
+
+	for (int i = 0; i < func_count; i++) {
+		fprintf(tmp_func_c, "\tcheck_show_%s(vetorStrings, &index);\n", func_names[i]);
+	}
+	fprintf(tmp_func_c,
+    "\tif (action == 0) {\n"
+    "\t\tfor (int i = 0; i < index; i++) {\n"
+    "\t\t\tprintf(\"%%s\\n\", vetorStrings[i]);\n"
+    "\t\t}\n"
+    "\t}\n");
+	fprintf(tmp_func_c, "}\n");
+	fclose(tmp_func_c);
+	fclose(tmp_func_h);
+
+	cat(stmpfile_checker_func_c, domainc);
+	cat(stmpfile_checker_func_h, domainh);
+
+	remove(stmpfile_checker_func_c);
+	remove(stmpfile_checker_func_h);
+
     fclose(tmpfilec), fclose(tmpfileh);
     cat(stmpfilec, domainc), cat(stmpfileh, domainh);
     remove(stmpfilec), remove(stmpfileh);

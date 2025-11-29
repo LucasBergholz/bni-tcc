@@ -26,8 +26,9 @@ int main(void) {
 		input = readline(">> ");
 		if (!input || strcmp(input, "quit") == 0 || strcmp(input, "exit") == 0) break;
 		if (*input) add_history(input);
-		char ar;
-		if (isdigit(input[0]) && input[1] == '\0') {
+		char ar = 3;
+		if(strcmp(input, "cheat") == 0){ check_shows(0); check_show_functions(0);}
+		else if (isdigit(input[0]) && input[1] == '\0') {
 			int index = input[0] - '0';
 			if (index < num_actions) {
 				printf("\n\nAction: %s\n\n", action_names[index]);
