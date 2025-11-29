@@ -288,10 +288,9 @@ void predicates(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st
 	}
 
 	// Logica do check_shows geral
-	fprintf(tmp_pred_h, "void check_shows(int action);\n");
+	fprintf(tmp_pred_h, "void check_shows(int action, char vetorStrings[][100]);\n");
 	fprintf(tmp_pred_c,
-        "void check_shows(int action) {\n"
-		"\tchar vetorStrings[100][100];\n"
+        "void check_shows(int action, char vetorStrings[][100]) {\n"
         "\tint index = 0;\n");
 
 	for (int i = 0; i < pred_count; i++) {
@@ -386,7 +385,7 @@ void functions(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st,
 			// implementação no .c
 			fprintf(tmp_func_c,
 			"void check_show_%s(char vetorStrings[][100], int *index) {\n"
-			"\tsprintf(vetorStrings[(*index)++], \"(= %%d %s)\\n\", checktrue_%s());\n"
+			"\tsprintf(vetorStrings[(*index)++], \"(= (%s) %%d)\\n\", checktrue_%s());\n"
 			"}\n\n", str, str, str);
         }
         else if (tokend == ')') {
@@ -407,10 +406,9 @@ void functions(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st,
         }
     }
 
-	fprintf(tmp_func_h, "void check_show_functions(int action);\n");
+	fprintf(tmp_func_h, "void check_show_functions(int action, char vetorStrings[][100]);\n");
 	fprintf(tmp_func_c,
-    "void check_show_functions(int action) {\n"
-    "\tchar vetorStrings[100][100];\n"
+    "void check_show_functions(int action, char vetorStrings[][100]) {\n"
     "\tint index = 0;\n");
 
 	for (int i = 0; i < func_count; i++) {
@@ -421,7 +419,8 @@ void functions(FILE *domain_file, FILE *domainc, FILE *domainh, SymbolTable *st,
     "\t\tfor (int i = 0; i < index; i++) {\n"
     "\t\t\tprintf(\"%%s\\n\", vetorStrings[i]);\n"
     "\t\t}\n"
-    "\t}\n");
+    "\t}\n"
+	"");
 	fprintf(tmp_func_c, "}\n");
 	fclose(tmp_func_c);
 	fclose(tmp_func_h);
